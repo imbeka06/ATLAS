@@ -35,7 +35,7 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
 
   return (
     <div className="h-full bg-white flex flex-col">
-      {/* Notice: The duplicate tab bar has been removed from here! */}
+      {}
 
       <div className="flex-1 overflow-auto p-0 bg-slate-50">
         {activeTab === 'code' ? (
