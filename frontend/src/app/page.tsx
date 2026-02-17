@@ -6,6 +6,7 @@ import { sendMessage, ProjectState } from "@/lib/api";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'srs' | 'diagram' | 'code'>('srs');
   const [lastModel, setLastModel] = useState<string>(""); 
 
   const [projectState, setProjectState] = useState<ProjectState>({
@@ -21,20 +22,21 @@ export default function Home() {
 
   const handleSend = async (msg: string) => {
     setLoading(true);
-    
     const tempHistory = [...projectState.history, { role: "user", content: msg }];
     setProjectState({ ...projectState, history: tempHistory });
 
     try {
       const result = await sendMessage(msg, projectState);
-      
       setProjectState(result.updated_state);
       setLastModel(result.model_used);
       
+      if (result.updated_state.phase === 'architecture') setActiveTab('diagram');
+      if (result.updated_state.phase === 'coding') setActiveTab('code');
+
     } catch (e) {
       const errorMessage = { 
         role: "assistant", 
-        content: "⚠️ **System Offline:** API Keys are not configured. Please add OPENAI_API_KEY and DEEPSEEK_API_KEY to your backend `.env` file to activate the AI." 
+        content: "⚠️ **System Offline:** Backend is not reachable." 
       };
       setProjectState({ 
         ...projectState, 
@@ -56,8 +58,27 @@ export default function Home() {
         />
       </div>
       
-      <div className="flex-1 h-full bg-slate-50">
-        <Workspace activeTab="srs" content={workspaceContent} />
+      <div className="flex-1 h-full bg-slate-50 flex flex-col">
+         {/* Custom Tab Bar passing the setter */}
+         <div className="flex border-b border-slate-200 px-4 bg-white">
+            {['srs', 'diagram', 'code'].map((tab) => (
+            <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`px-4 py-3 text-sm font-medium border-b-2 capitalize ${
+                activeTab === tab
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
+                }`}
+            >
+                {tab}
+            </button>
+            ))}
+        </div>
+
+        <div className="flex-1 overflow-hidden">
+            <Workspace activeTab={activeTab} content={workspaceContent} />
+        </div>
       </div>
     </main>
   );
