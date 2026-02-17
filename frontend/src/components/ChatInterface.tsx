@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, Cpu } from "lucide-react";
+import { Send, Cpu } from "lucide-react";
 
 interface ChatProps {
   history: { role: string; content: string }[];

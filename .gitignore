@@ -1,0 +1,9 @@
+node_modules/
+.next/
+npm-debug.log
+
+
+venv/
+__pycache__/
+*.pyc
+.env
