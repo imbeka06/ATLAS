@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import './globals.css'
+import './globals.css' // <-- This must exactly match your filename
 
 export const metadata: Metadata = {
   title: 'ARCHITECT.AI',
@@ -13,7 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      {/* If Tailwind works, the whole background will turn RED */}
+      <body className="bg-red-500">{children}</body>
     </html>
   )
 }
