@@ -21,6 +21,10 @@ export default function Home() {
 
   const handleSend = async (msg: string) => {
     setLoading(true);
+    
+    const tempHistory = [...projectState.history, { role: "user", content: msg }];
+    setProjectState({ ...projectState, history: tempHistory });
+
     try {
       const result = await sendMessage(msg, projectState);
       
@@ -28,8 +32,14 @@ export default function Home() {
       setLastModel(result.model_used);
       
     } catch (e) {
-      console.error(e);
-      alert("Failed to connect to Backend.");
+      const errorMessage = { 
+        role: "assistant", 
+        content: "⚠️ **System Offline:** API Keys are not configured. Please add OPENAI_API_KEY and DEEPSEEK_API_KEY to your backend `.env` file to activate the AI." 
+      };
+      setProjectState({ 
+        ...projectState, 
+        history: [...tempHistory, errorMessage] 
+      });
     } finally {
       setLoading(false);
     }
