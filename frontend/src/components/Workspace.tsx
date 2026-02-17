@@ -35,21 +35,7 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
 
   return (
     <div className="h-full bg-white flex flex-col">
-      <div className="flex border-b border-slate-200 px-4">
-        {['srs', 'diagram', 'code'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => console.log("Tab clicked:", tab)} 
-            className={`px-4 py-3 text-sm font-medium border-b-2 capitalize ${
-              activeTab === tab
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+      {/* Notice: The duplicate tab bar has been removed from here! */}
 
       <div className="flex-1 overflow-auto p-0 bg-slate-50">
         {activeTab === 'code' ? (
