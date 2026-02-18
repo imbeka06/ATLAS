@@ -5,7 +5,7 @@ from .services import analyze_intent_and_respond
 
 app = FastAPI(title="ARCHITECT.AI API")
 
-# CRITICAL FIX: Allow all origins so localhost:3000 can talk to 127.0.0.1:8000
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
