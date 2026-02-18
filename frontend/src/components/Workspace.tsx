@@ -4,16 +4,13 @@ import MermaidDiagram from './MermaidDiagram';
 import FileExplorer from './FileExplorer';
 import WebPreview from './WebPreview';
 
-
 interface WorkspaceProps {
-  activeTab: 'srs' | 'diagram' | 'code';
+  activeTab: 'srs' | 'diagram' | 'code' | 'preview';
   content: string;
 }
 
-
 const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
   const files: Record<string, string> = {};
-  
   
   const blockRegex = /\*\*`([^`]+)`\*\*\s*```[a-z]*\n([\s\S]*?)```/g;
   let match;
@@ -21,17 +18,15 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
 
   while ((match = blockRegex.exec(markdown)) !== null) {
     found = true;
-    const fileName = match[1];
-    const fileContent = match[2].trim();
-    files[fileName] = fileContent;
+    files[match[1]] = match[2].trim();
   }
-
 
   if (!found) {
     const fallbackRegex = /```([a-z]*)\n([\s\S]*?)```/g;
     let index = 1;
     while ((match = fallbackRegex.exec(markdown)) !== null) {
-        const ext = match[1] === 'python' ? 'py' : match[1] === 'tsx' ? 'tsx' : 'txt';
+        if (match[1] === 'mermaid') continue; 
+        const ext = match[1] === 'html' ? 'html' : match[1] === 'css' ? 'css' : match[1] === 'javascript' || match[1] === 'js' ? 'js' : match[1] === 'python' ? 'py' : match[1] === 'tsx' ? 'tsx' : 'txt';
         files[`generated_file_${index}.${ext}`] = match[2].trim();
         index++;
     }
@@ -54,27 +49,49 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
     }
   };
 
-  
   const dynamicFiles = parseFilesFromMarkdown(content);
+
+  const getFilteredContent = () => {
+    if (activeTab === 'srs') {
+      const parts = content.split('```mermaid');
+      let srsContent = parts[0];
+      const codeRegex = /\*\*`([^`]+)`\*\*\s*```[a-z]*\n([\s\S]*?)```/g;
+      srsContent = srsContent.replace(codeRegex, '');
+      const genericCodeRegex = /```([a-z]*)\n([\s\S]*?)```/g;
+      srsContent = srsContent.replace(genericCodeRegex, '');
+      return srsContent.trim() || "No SRS content generated yet.";
+    }
+    if (activeTab === 'diagram') {
+        const mermaidMatches = [...content.matchAll(/```mermaid\n([\s\S]*?)```/g)];
+        if (mermaidMatches.length > 0) {
+            return mermaidMatches.map(m => `\`\`\`mermaid\n${m[1]}\n\`\`\``).join('\n\n');
+        }
+        return "No diagrams generated yet. Ask the AI to create an ERD, DFD, or Flowchart.";
+    }
+    return content;
+  };
 
   return (
     <div className="h-full bg-white flex flex-col">
       <div className="flex-1 overflow-auto p-0 bg-slate-50">
         {activeTab === 'code' ? (
              <div className="h-full p-4">
-                {}
                 <FileExplorer files={dynamicFiles} />
+             </div>
+        ) : activeTab === 'preview' ? (
+             <div className="h-full p-4">
+                 <WebPreview files={dynamicFiles} />
              </div>
         ) : (
             <div className="p-8">
                 <article className="prose prose-slate max-w-none">
                 {content ? (
                     <ReactMarkdown components={components}>
-                    {content}
+                    {getFilteredContent()}
                     </ReactMarkdown>
                 ) : (
                     <div className="text-center text-slate-400 mt-20">
-                    <p>No architecture generated yet. Describe your system to begin.</p>
+                    <p>No content generated yet. Describe your system to begin.</p>
                     </div>
                 )}
                 </article>
