@@ -1,26 +1,48 @@
 import os
+from dotenv import load_dotenv
 from openai import OpenAI
-from .models import ProjectState, ProjectPhase
+from .models import ProjectState, ProjectPhase, UserRequest
+
+load_dotenv()
 
 client = OpenAI(
-    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    api_key=os.getenv("DEEPSEEK_API_KEY", "missing_key"),
     base_url="https://api.deepseek.com"
 )
 
-def analyze_intent_and_respond(message: str, state: ProjectState) -> dict:
+def analyze_intent_and_respond(request: UserRequest) -> dict:
+    state = request.current_state
     messages = [
-        {"role": "system", "content": "You are ATLAS, an expert AI software architect. When generating code, always format it clearly using markdown with the filename in bold, like this: **`frontend/app.tsx`** \n```tsx\n code here \n```"}
+        {
+            "role": "system",
+            "content": "You are ATLAS, an expert AI software architect. When generating code, output distinct files using markdown with the filename in bold, like: **`index.html`** \n```html\n code \n```. For web projects, strictly separate HTML, CSS, and JS into distinct files. For diagrams, always use Mermaid JS (ERD, DFD, flowcharts). Separate SRS documentation clearly from code."
+        }
     ]
 
     recent_history = state.history[-4:]
-    
     for msg in recent_history:
-        content = str(msg["content"])
+        content = str(msg.content)
         if len(content) > 1000:
             content = content[:1000] + "\n... [Code Truncated for Memory]"
-        messages.append({"role": msg.get("role", "user"), "content": content})
+            
+        if msg.attachment:
+            messages.append({
+                "role": msg.role,
+                "content": [
+                    {"type": "text", "text": content},
+                    {"type": "image_url", "image_url": {"url": msg.attachment.data}}
+                ]
+            })
+        else:
+            messages.append({"role": msg.role, "content": content})
 
-    messages.append({"role": "user", "content": message})
+    user_content = [{"type": "text", "text": request.message}]
+    if request.attachment:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": request.attachment.data}
+        })
+    messages.append({"role": "user", "content": user_content})
 
     response = client.chat.completions.create(
         model="deepseek-chat",
