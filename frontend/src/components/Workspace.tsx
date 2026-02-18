@@ -62,7 +62,13 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
       return srsContent.trim() || "No SRS content generated yet.";
     }
     if (activeTab === 'diagram') {
-        const mermaidMatches = [...content.matchAll(/```mermaid\n([\s\S]*?)```/g)];
+        const mermaidMatches = [];
+        const regex = /```mermaid\n([\s\S]*?)```/g;
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+            mermaidMatches.push(match);
+        }
+
         if (mermaidMatches.length > 0) {
             return mermaidMatches.map(m => `\`\`\`mermaid\n${m[1]}\n\`\`\``).join('\n\n');
         }
