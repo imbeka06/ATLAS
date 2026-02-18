@@ -2,6 +2,8 @@
 import ReactMarkdown from 'react-markdown';
 import MermaidDiagram from './MermaidDiagram';
 import FileExplorer from './FileExplorer';
+import WebPreview from './WebPreview';
+
 
 interface WorkspaceProps {
   activeTab: 'srs' | 'diagram' | 'code';
