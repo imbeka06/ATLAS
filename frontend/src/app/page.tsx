@@ -2,11 +2,11 @@
 import { useState } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import Workspace from "@/components/Workspace";
-import { sendMessage, ProjectState } from "@/lib/api";
+import { sendMessage, ProjectState, Attachment } from "@/lib/api";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'srs' | 'diagram' | 'code'>('srs');
+  const [activeTab, setActiveTab] = useState<'srs' | 'diagram' | 'code' | 'preview'>('srs');
   const [lastModel, setLastModel] = useState<string>(""); 
 
   const [projectState, setProjectState] = useState<ProjectState>({
@@ -20,13 +20,13 @@ export default function Home() {
     .filter(m => m.role === 'assistant')
     .slice(-1)[0]?.content || "";
 
-  const handleSend = async (msg: string) => {
+  const handleSend = async (msg: string, attachment?: Attachment) => {
     setLoading(true);
-    const tempHistory = [...projectState.history, { role: "user", content: msg }];
+    const tempHistory = [...projectState.history, { role: "user", content: msg, attachment }];
     setProjectState({ ...projectState, history: tempHistory });
 
     try {
-      const result = await sendMessage(msg, projectState);
+      const result = await sendMessage(msg, projectState, attachment);
       setProjectState(result.updated_state);
       setLastModel(result.model_used);
       
@@ -59,9 +59,8 @@ export default function Home() {
       </div>
       
       <div className="flex-1 h-full bg-slate-50 flex flex-col">
-         {/* Custom Tab Bar passing the setter */}
-         <div className="flex border-b border-slate-200 px-4 bg-white">
-            {['srs', 'diagram', 'code'].map((tab) => (
+         <div className="flex border-b border-slate-200 px-4 bg-white items-center">
+            {['srs', 'diagram', 'code', 'preview'].map((tab) => (
             <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
