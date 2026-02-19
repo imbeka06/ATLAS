@@ -15,15 +15,15 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
     messages = [
         {
             "role": "system",
-            "content": "You are ATLAS, an expert AI software architect. When generating code, output distinct files using markdown with the filename in bold, like: **`index.html`** \n```html\n code \n```. For web projects, strictly separate HTML, CSS, and JS into distinct files. For diagrams, always use Mermaid JS (ERD, DFD, flowcharts). Separate SRS documentation clearly from code."
+            "content": "You are ATLAS. Output distinct files using markdown with the filename in bold, exactly like: **`index.html`**\n```html\ncode\n```. Always provide full HTML for web previews. Separate HTML, CSS, and JS. Use Mermaid JS for diagrams."
         }
     ]
 
-    recent_history = state.history[-4:]
+    recent_history = state.history[-6:]
     for msg in recent_history:
         content = str(msg.content)
         if len(content) > 1000:
-            content = content[:1000] + "\n... [Code Truncated for Memory]"
+            content = content[:1000] + "\n\n...[Truncated]"
             
         if msg.attachment:
             messages.append({
@@ -36,7 +36,9 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
         else:
             messages.append({"role": msg.role, "content": content})
 
-    user_content = [{"type": "text", "text": request.message}]
+    enforced_prompt = request.message + "\n\n[SYSTEM REMINDER: Format every file exactly as **`filename.ext`** followed immediately by the markdown code block. If building a web app, always include the full index.html file.]"
+    
+    user_content = [{"type": "text", "text": enforced_prompt}]
     if request.attachment:
         user_content.append({
             "type": "image_url",
