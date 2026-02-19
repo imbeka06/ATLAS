@@ -14,27 +14,31 @@ export default function WebPreview({ files }: WebPreviewProps) {
     let js = "";
 
     Object.entries(files).forEach(([name, content]) => {
-      if (name.endsWith(".html")) html = content;
-      else if (name.endsWith(".css")) css += content + "\n";
-      else if (name.endsWith(".js") || name.endsWith(".javascript")) js += content + "\n";
+      const lowerName = name.toLowerCase();
+      if (lowerName.endsWith(".html")) html = content;
+      else if (lowerName.endsWith(".css")) css += content + "\n";
+      else if (lowerName.endsWith(".js") || lowerName.endsWith(".javascript")) js += content + "\n";
     });
 
     if (!html) {
       html = `
-        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; color: #666;">
-          <h2>No HTML file found to preview.</h2>
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; color: #333; background: #f8fafc;">
+          <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">No HTML file detected</h2>
+          <p style="color: #64748b;">The AI did not generate an HTML file in this response.</p>
         </div>
       `;
     } else {
         if (css) {
-            html = html.replace("</head>", `<style>\n${css}\n</style>\n</head>`);
-            if (html === html.replace("</head>", "")) {
+            if (html.includes("</head>")) {
+                html = html.replace("</head>", `<style>\n${css}\n</style>\n</head>`);
+            } else {
                 html += `<style>\n${css}\n</style>`;
             }
         }
         if (js) {
-            html = html.replace("</body>", `<script>\n${js}\n</script>\n</body>`);
-            if (html === html.replace("</body>", "")) {
+            if (html.includes("</body>")) {
+                html = html.replace("</body>", `<script>\n${js}\n</script>\n</body>`);
+            } else {
                 html += `<script>\n${js}\n</script>`;
             }
         }
