@@ -15,6 +15,7 @@ export type Message = {
 };
 
 export type ProjectState = {
+  id: string;
   name: string;
   phase: 'discovery' | 'architecture' | 'coding';
   tech_stack: string[];
@@ -29,7 +30,7 @@ export type AIResponse = {
 
 export const sendMessage = async (message: string, currentState: ProjectState, attachment?: Attachment) => {
   const response = await axios.post<AIResponse>(`${API_URL}/chat`, {
-    project_id: "demo-1",
+    project_id: currentState.id,
     message,
     current_state: currentState,
     attachment
