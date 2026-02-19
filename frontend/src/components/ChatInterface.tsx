@@ -7,10 +7,9 @@ interface ChatProps {
   history: Message[];
   onSendMessage: (msg: string, attachment?: Attachment) => void;
   isLoading: boolean;
-  lastModelUsed?: string;
 }
 
-export default function ChatInterface({ history, onSendMessage, isLoading, lastModelUsed }: ChatProps) {
+export default function ChatInterface({ history, onSendMessage, isLoading }: ChatProps) {
   const [input, setInput] = useState("");
   const [attachment, setAttachment] = useState<Attachment | undefined>();
   const endRef = useRef<HTMLDivElement>(null);
@@ -79,12 +78,10 @@ export default function ChatInterface({ history, onSendMessage, isLoading, lastM
       </div>
 
       <div className="p-4 border-t border-slate-200 bg-white">
-        {lastModelUsed && (
-            <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
-                <Cpu size={12} />
-                <span>Processed by: {lastModelUsed}</span>
-            </div>
-        )}
+        <div className="flex items-center gap-1 text-xs text-slate-400 mb-2 font-semibold">
+            <Cpu size={12} />
+            <span>Processed by Imbeka Musa tech Lab</span>
+        </div>
         
         {attachment && (
             <div className="flex items-center gap-2 mb-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
