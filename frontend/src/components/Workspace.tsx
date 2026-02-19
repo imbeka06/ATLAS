@@ -12,36 +12,36 @@ interface WorkspaceProps {
 const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
   const files: Record<string, string> = {};
   
-  const blockRegex = /\*\*`([^`]+)`\*\*\s*```[a-z]*\n([\s\S]*?)```/g;
+  const blockRegex = /(?:\*\*`?([^`*]+)`?\*\*|###\s*([^\n]+))\s*```[a-z]*\n([\s\S]*?)```/gi;
   let match;
   let found = false;
 
   while ((match = blockRegex.exec(markdown)) !== null) {
     found = true;
-    files[match[1]] = match[2].trim();
+    const fileName = (match[1] || match[2]).trim();
+    files[fileName] = match[3].trim();
   }
 
   if (!found) {
-    const fallbackRegex = /```([a-z]*)\n([\s\S]*?)```/g;
+    const fallbackRegex = /```([a-z]*)\n([\s\S]*?)```/gi;
     let index = 1;
     while ((match = fallbackRegex.exec(markdown)) !== null) {
-        if (match[1] === 'mermaid') continue; 
-        const ext = match[1] === 'html' ? 'html' : match[1] === 'css' ? 'css' : match[1] === 'javascript' || match[1] === 'js' ? 'js' : match[1] === 'python' ? 'py' : match[1] === 'tsx' ? 'tsx' : 'txt';
+        const lang = match[1].toLowerCase();
+        if (lang === 'mermaid') continue; 
+        const ext = lang === 'html' ? 'html' : lang === 'css' ? 'css' : (lang === 'js' || lang === 'javascript') ? 'js' : lang === 'python' ? 'py' : lang === 'tsx' ? 'tsx' : 'txt';
         files[`generated_file_${index}.${ext}`] = match[2].trim();
         index++;
     }
   }
 
-  return Object.keys(files).length > 0 ? files : { "info.txt": "// Waiting for AI to generate code..." };
+  return Object.keys(files).length > 0 ? files : { "info.txt": "No code blocks found in response." };
 };
 
 export default function Workspace({ activeTab, content }: WorkspaceProps) {
-  
   const components = {
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
       const isMermaid = match && match[1] === 'mermaid';
-
       if (!inline && isMermaid) {
         return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
       }
@@ -53,26 +53,21 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
 
   const getFilteredContent = () => {
     if (activeTab === 'srs') {
-      const parts = content.split('```mermaid');
-      let srsContent = parts[0];
-      const codeRegex = /\*\*`([^`]+)`\*\*\s*```[a-z]*\n([\s\S]*?)```/g;
-      srsContent = srsContent.replace(codeRegex, '');
-      const genericCodeRegex = /```([a-z]*)\n([\s\S]*?)```/g;
-      srsContent = srsContent.replace(genericCodeRegex, '');
+      let srsContent = content.replace(/```[\s\S]*?```/g, '');
+      srsContent = srsContent.replace(/\*\*`?[^`*]+`?\*\*/g, '');
       return srsContent.trim() || "No SRS content generated yet.";
     }
     if (activeTab === 'diagram') {
         const mermaidMatches = [];
-        const regex = /```mermaid\n([\s\S]*?)```/g;
+        const regex = /```mermaid\n([\s\S]*?)```/gi;
         let match;
         while ((match = regex.exec(content)) !== null) {
             mermaidMatches.push(match);
         }
-
         if (mermaidMatches.length > 0) {
             return mermaidMatches.map(m => `\`\`\`mermaid\n${m[1]}\n\`\`\``).join('\n\n');
         }
-        return "No diagrams generated yet. Ask the AI to create an ERD, DFD, or Flowchart.";
+        return "No diagrams generated yet.";
     }
     return content;
   };
