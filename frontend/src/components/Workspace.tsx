@@ -28,8 +28,16 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
     while ((match = fallbackRegex.exec(markdown)) !== null) {
         const lang = match[1].toLowerCase();
         if (lang === 'mermaid') continue; 
-        const ext = lang === 'html' ? 'html' : lang === 'css' ? 'css' : (lang === 'js' || lang === 'javascript') ? 'js' : lang === 'python' ? 'py' : lang === 'tsx' ? 'tsx' : 'txt';
-        files[`generated_file_${index}.${ext}`] = match[2].trim();
+        
+        const content = match[2].trim();
+        let ext = 'txt';
+        
+        if (lang === 'html' || content.includes('<!DOCTYPE') || content.includes('<html')) ext = 'html';
+        else if (lang === 'css' || content.includes('margin:') || content.includes('color:')) ext = 'css';
+        else if (lang === 'js' || lang === 'javascript') ext = 'js';
+        else if (lang) ext = lang;
+
+        files[`generated_file_${index}.${ext}`] = content;
         index++;
     }
   }
