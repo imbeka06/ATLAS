@@ -18,6 +18,7 @@ class Message(BaseModel):
     attachment: Optional[Attachment] = None
 
 class ProjectState(BaseModel):
+    id: str
     name: str
     phase: ProjectPhase
     tech_stack: List[str]
