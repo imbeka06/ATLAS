@@ -5,14 +5,13 @@ import FileExplorer from './FileExplorer';
 import WebPreview from './WebPreview';
 
 interface WorkspaceProps {
-  activeTab: 'srs' | 'diagram' | 'code' | 'preview';
+  activeTab: 'srs' | 'architecture' | 'explanation' | 'code' | 'preview';
   content: string;
 }
 
 const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
   const files: Record<string, string> = {};
-  
-  const blockRegex = /(?:\*\*`?([^`*]+)`?\*\*|###\s*([^\n]+))\s*```[a-z]*\n([\s\S]*?)```/gi;
+  const blockRegex = /(?:\*\*`?([^`*\n]+)`?\*\*|###\s*([^\n]+))\s*```[a-z]*\n([\s\S]*?)```/gi;
   let match;
   let found = false;
 
@@ -32,12 +31,13 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
         const content = match[2].trim();
         let ext = 'txt';
         
-        if (lang === 'html' || content.includes('<!DOCTYPE') || content.includes('<html')) ext = 'html';
-        else if (lang === 'css' || content.includes('margin:') || content.includes('color:')) ext = 'css';
-        else if (lang === 'js' || lang === 'javascript') ext = 'js';
+        if (content.includes('<!DOCTYPE html') || content.includes('<html')) ext = 'html';
+        else if (content.includes('body {') || content.includes('margin:')) ext = 'css';
+        else if (content.includes('function') || content.includes('console.log')) ext = 'js';
         else if (lang) ext = lang;
 
-        files[`generated_file_${index}.${ext}`] = content;
+        const finalName = ext === 'html' ? 'index.html' : `generated_file_${index}.${ext}`;
+        files[finalName] = content;
         index++;
     }
   }
@@ -61,11 +61,22 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
 
   const getFilteredContent = () => {
     if (activeTab === 'srs') {
-      let srsContent = content.replace(/```[\s\S]*?```/g, '');
-      srsContent = srsContent.replace(/\*\*`?[^`*]+`?\*\*/g, '');
-      return srsContent.trim() || "No SRS content generated yet.";
+        const srsMatch = content.match(/## 1\.\s*SRS Documentation([\s\S]*?)(?=## 2\.|## 3\.|## 4\.)/i);
+        if (srsMatch) return srsMatch[1].trim();
+        
+        let srsContent = content.replace(/```mermaid[\s\S]*?```/g, '');
+        srsContent = srsContent.replace(/```[\s\S]*?```/g, '');
+        srsContent = srsContent.replace(/\*\*`?[^`*]+`?\*\*/g, '');
+        return srsContent.trim() || "No SRS documentation found.";
     }
-    if (activeTab === 'diagram') {
+    
+    if (activeTab === 'explanation') {
+        const expMatch = content.match(/## 3\.\s*Step-by-Step Explanation([\s\S]*?)(?=## 4\.)/i);
+        if (expMatch) return expMatch[1].trim();
+        return "No step-by-step explanation generated yet.";
+    }
+
+    if (activeTab === 'architecture') {
         const mermaidMatches = [];
         const regex = /```mermaid\n([\s\S]*?)```/gi;
         let match;
@@ -77,6 +88,7 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
         }
         return "No diagrams generated yet.";
     }
+    
     return content;
   };
 
