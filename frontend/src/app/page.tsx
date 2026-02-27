@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import ChatInterface from "@/components/ChatInterface";
 import Workspace from "@/components/Workspace";
 import { sendMessage, ProjectState, Attachment } from "@/lib/api";
-import { MessageSquare, Plus, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Menu } from "lucide-react";
 
 const createNewProject = (): ProjectState => ({
   id: Date.now().toString(),
@@ -16,7 +16,8 @@ const createNewProject = (): ProjectState => ({
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'srs' | 'diagram' | 'code' | 'preview'>('srs');
+  const [activeTab, setActiveTab] = useState<'srs' | 'architecture' | 'explanation' | 'code' | 'preview'>('srs');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   
   const [projects, setProjects] = useState<ProjectState[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string>("");
@@ -86,10 +87,9 @@ export default function Home() {
 
     try {
       const result = await sendMessage(msg, tempProject, attachment);
-      
       setProjects(prev => prev.map(p => p.id === activeProjectId ? result.updated_state : p));
       
-      if (result.updated_state.phase === 'architecture') setActiveTab('diagram');
+      if (result.updated_state.phase === 'architecture') setActiveTab('architecture');
       if (result.updated_state.phase === 'coding') setActiveTab('code');
 
     } catch (e) {
@@ -105,8 +105,10 @@ export default function Home() {
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-white">
-      <div className="w-[250px] flex-shrink-0 h-full border-r border-slate-200 bg-slate-50 flex flex-col">
-        <div className="p-4 border-b border-slate-200">
+      
+      {/* Animated Sidebar */}
+      <div className={`${isSidebarOpen ? 'w-[250px] border-r' : 'w-0 border-r-0'} flex-shrink-0 h-full border-slate-200 bg-slate-50 flex flex-col transition-all duration-300 overflow-hidden`}>
+        <div className="p-4 border-b border-slate-200 min-w-[250px]">
             <button 
                 onClick={handleNewChat}
                 className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md transition-colors text-sm font-medium"
@@ -115,7 +117,7 @@ export default function Home() {
                 New Chat
             </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-[250px]">
             {projects.map(p => (
                 <div 
                     key={p.id}
@@ -134,24 +136,38 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="w-[400px] flex-shrink-0 h-full border-r border-slate-200">
-        <ChatInterface 
-          history={activeProject.history} 
-          onSendMessage={handleSend} 
-          isLoading={loading}
-        />
+      {/* Chat Interface Column */}
+      <div className="w-[400px] flex-shrink-0 h-full border-r border-slate-200 flex flex-col">
+        {/* Toggle Header */}
+        <div className="flex items-center p-3 border-b border-slate-200 bg-white">
+            <button 
+                onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+                className="p-1.5 mr-3 text-slate-500 hover:bg-slate-100 hover:text-blue-600 rounded-md transition-colors"
+            >
+                <Menu size={20} />
+            </button>
+            <span className="font-semibold text-sm text-slate-700">Project Console</span>
+        </div>
+        <div className="flex-1 overflow-hidden">
+            <ChatInterface 
+            history={activeProject.history} 
+            onSendMessage={handleSend} 
+            isLoading={loading}
+            />
+        </div>
       </div>
       
+      {/* Workspace Area */}
       <div className="flex-1 h-full bg-slate-50 flex flex-col overflow-hidden">
          <div className="flex border-b border-slate-200 px-4 bg-white items-center flex-shrink-0">
-            {['srs', 'diagram', 'code', 'preview'].map((tab) => (
+            {['srs', 'architecture', 'explanation', 'code', 'preview'].map((tab) => (
             <button
                 key={tab}
                 onClick={() => setActiveTab(tab as any)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 capitalize ${
+                className={`px-4 py-3 text-sm font-medium border-b-2 capitalize transition-colors ${
                 activeTab === tab
                     ? "border-blue-600 text-blue-600"
-                    : "border-transparent text-slate-500 hover:text-slate-700"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                 }`}
             >
                 {tab}
