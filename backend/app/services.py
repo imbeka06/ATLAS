@@ -5,7 +5,6 @@ from .models import ProjectState, ProjectPhase, UserRequest
 
 load_dotenv()
 
-# 1. Initialize BOTH Brains
 deepseek_client = OpenAI(
     api_key=os.getenv("DEEPSEEK_API_KEY", "missing_key"),
     base_url="https://api.deepseek.com"
@@ -17,32 +16,29 @@ openai_client = OpenAI(
 
 def analyze_intent_and_respond(request: UserRequest) -> dict:
     state = request.current_state
-    
-    # 2. The Router Logic: Determine if the request requires vision capabilities
     requires_vision = request.attachment and request.attachment.type.startswith('image/')
     
     system_prompt = (
         "You are ATLAS, an elite AI Solutions Architect. "
-        "Every response MUST strictly follow this structure:\n"
-        "1. **## SRS & Documentation** (Analyze the request)\n"
-        "2. **## Architecture** (Update Mermaid diagrams)\n"
-        "3. **## Implementation** (Provide FULL code files)\n\n"
-        "CRITICAL RULES:\n"
-        "- NEVER output snippets. Always output the FULL content of every file (e.g., the complete index.html) so the preview works.\n"
-        "- File format: **`filename.ext`** followed by the code block.\n"
-        "- For web apps, always output 'index.html', 'style.css', and 'script.js'."
+        "Every response MUST strictly follow this EXACT 4-part structure:\n\n"
+        "## 1. SRS Documentation\n"
+        "(Write a formal, static Software Requirements Specification.)\n\n"
+        "## 2. Architecture Diagrams\n"
+        "(Provide ERDs, DFDs, or flowcharts using ONLY Mermaid JS: ```mermaid...```)\n\n"
+        "## 3. Step-by-Step Explanation\n"
+        "(Explain the architecture rationale, e.g., why dual-brain or specific tech is used. Provide a highly detailed step-by-step tutorial including terminal commands, where to run `npm install`, when to `git commit`, and execution order.)\n\n"
+        "## 4. Implementation\n"
+        "(Provide FULL code files. Format EXACTLY as: **`filename.ext`** followed by the code block. Always output complete files like 'index.html', 'style.css', and 'script.js' for previews.)"
     )
 
     messages = [{"role": "system", "content": system_prompt}]
     recent_history = state.history[-6:]
 
-    # 3. Smart History Parsing
     for msg in recent_history:
         content = str(msg.content)
         if len(content) > 1500:
             content = content[:1500] + "\n\n...[Old Code Truncated to save memory]..."
             
-        # If the history contains an image, we only pass it if we are using OpenAI right now
         has_historical_image = getattr(msg, 'attachment', None) and msg.attachment.type.startswith('image/')
         
         if has_historical_image and requires_vision:
@@ -60,8 +56,8 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
 
     enforced_user_prompt = (
         f"{request.message}\n\n"
-        "IMPORTANT: Regenerate the COMPLETE 'index.html' and 'style.css' files. "
-        "Do not just show the diffs. The preview will break if you don't provide the full code."
+        "IMPORTANT: You MUST generate all 4 sections (1. SRS, 2. Architecture, 3. Explanation, 4. Implementation). "
+        "Under Implementation, regenerate the COMPLETE 'index.html' and 'style.css' files so the web preview functions perfectly."
     )
     
     user_content = [{"type": "text", "text": enforced_user_prompt}]
@@ -74,9 +70,7 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
         
     messages.append({"role": "user", "content": user_content})
 
-    # 4. The Traffic Cop: Route the request to the correct brain
     if requires_vision:
-        # Send to OpenAI
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=messages,
@@ -85,7 +79,6 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
         )
         used_brain = "gpt-4o"
     else:
-        # Send to DeepSeek
         response = deepseek_client.chat.completions.create(
             model="deepseek-chat",
             messages=messages,
