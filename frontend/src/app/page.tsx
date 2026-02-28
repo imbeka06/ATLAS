@@ -65,10 +65,7 @@ export default function Home() {
     }
   };
 
-  const workspaceContent = activeProject.history
-    .filter(m => m.role === 'assistant')
-    .slice(-1)[0]?.content || "";
-
+  const assistantHistory = activeProject.history.filter(m => m.role === 'assistant');
   const handleSend = async (msg: string, attachment?: Attachment) => {
     setLoading(true);
     
