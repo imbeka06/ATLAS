@@ -1,78 +1,114 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { WebContainer } from '@webcontainer/api';
 
 interface WebPreviewProps {
   files: Record<string, string>;
 }
 
+// Keep a singleton instance so we don't boot multiple OSs at once
+let webcontainerInstance: WebContainer | null = null;
+
 export default function WebPreview({ files }: WebPreviewProps) {
-  const [blobUrl, setBlobUrl] = useState<string>("");
+  const [iframeUrl, setIframeUrl] = useState<string>("");
+  const [bootStatus, setBootStatus] = useState<string>("Initializing OS...");
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
-    let html = "";
-    let css = "";
-    let js = "";
+    let isMounted = true;
 
-    Object.entries(files).forEach(([name, content]) => {
-      const lowerName = name.toLowerCase();
-      const lowerContent = content.toLowerCase();
+    async function bootAndRun() {
+      try {
+        // 1. Boot the micro-OS if it hasn't booted yet
+        if (!webcontainerInstance) {
+          setBootStatus("Booting WebContainer...");
+          webcontainerInstance = await WebContainer.boot();
+        }
 
-      if (lowerName.endsWith(".html") || lowerContent.includes("<!doctype html>") || lowerContent.includes("<html")) {
-        html += content + "\n";
-      } else if (lowerName.endsWith(".css") || (!lowerContent.includes("<html") && (lowerContent.includes("margin:") || lowerContent.includes("padding:")))) {
-        css += content + "\n";
-      } else if (lowerName.endsWith(".js") || lowerName.endsWith(".javascript") || (!lowerContent.includes("<html") && lowerContent.includes("document."))) {
-        js += content + "\n";
+        // 2. Format the AI's files for the WebContainer file system
+        const tree: Record<string, any> = {};
+        Object.entries(files).forEach(([name, content]) => {
+          tree[name] = {
+            file: {
+              contents: content,
+            },
+          };
+        });
+
+        // Ensure there is always a package.json for the server
+        if (!tree['package.json']) {
+            tree['package.json'] = {
+                file: {
+                    contents: JSON.stringify({
+                        name: "atlas-preview",
+                        scripts: { start: "serve ." },
+                        dependencies: { serve: "^14.0.0" }
+                    })
+                }
+            }
+        }
+
+        setBootStatus("Mounting files...");
+        await webcontainerInstance.mount(tree);
+
+        // 3. Install dependencies (like 'serve' to host the HTML)
+        setBootStatus("Installing dependencies...");
+        const installProcess = await webcontainerInstance.spawn('npm', ['install']);
+        await installProcess.exit;
+
+        // 4. Start the server
+        setBootStatus("Starting local server...");
+        await webcontainerInstance.spawn('npm', ['run', 'start']);
+
+        // 5. Listen for the server to announce its URL, then feed it to the iframe
+        webcontainerInstance.on('server-ready', (port, url) => {
+          if (isMounted) {
+            setIframeUrl(url);
+            setBootStatus(""); // Clear loading status
+          }
+        });
+
+      } catch (error) {
+        console.error("WebContainer Error:", error);
+        if (isMounted) setBootStatus("Failed to boot environment. Check console.");
       }
-    });
-
-    if (!html) {
-      html = `
-        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; background: #f8fafc;">
-          <h2 style="font-size: 24px; font-weight: bold; margin-bottom: 8px; color: #333;">Preview Not Available</h2>
-          <p style="color: #64748b;">No HTML code was found in the response.</p>
-        </div>
-      `;
-    } else {
-        if (css) {
-            if (html.includes("</head>")) {
-                html = html.replace("</head>", `<style>\n${css}\n</style>\n</head>`);
-            } else {
-                html += `<style>\n${css}\n</style>`;
-            }
-        }
-        if (js) {
-            if (html.includes("</body>")) {
-                html = html.replace("</body>", `<script>\n${js}\n</script>\n</body>`);
-            } else {
-                html += `<script>\n${js}\n</script>`;
-            }
-        }
     }
 
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    setBlobUrl(url);
+    if (Object.keys(files).length > 0) {
+      bootAndRun();
+    }
 
-    return () => URL.revokeObjectURL(url);
+    return () => {
+      isMounted = false;
+    };
   }, [files]);
 
   return (
-    <div className="w-full h-full bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+    <div className="w-full h-full bg-white border border-slate-200 rounded-lg overflow-hidden flex flex-col relative">
       <div className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center gap-2 text-xs text-slate-400 font-mono">
         <div className="flex gap-1.5">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
           <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
         </div>
-        <span className="ml-2">Live Browser Preview</span>
+        <span className="ml-2">Live WebContainer Environment</span>
       </div>
-      <iframe
-        title="Web Preview"
-        src={blobUrl}
-        className="w-full flex-1 border-none bg-white"
-        sandbox="allow-scripts allow-modals allow-same-origin allow-forms"
-      />
+      
+      {bootStatus && (
+        <div className="absolute inset-0 top-8 bg-slate-50 flex flex-col items-center justify-center font-mono text-sm text-blue-600 z-10">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            {bootStatus}
+        </div>
+      )}
+
+      {iframeUrl && (
+        <iframe
+          ref={iframeRef}
+          src={iframeUrl}
+          className="w-full flex-1 border-none bg-white"
+          allow="cross-origin-isolated"
+        />
+      )}
     </div>
   );
 }
