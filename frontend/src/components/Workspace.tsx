@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import MermaidDiagram from './MermaidDiagram';
 import FileExplorer from './FileExplorer';
@@ -6,10 +7,9 @@ import WebPreview from './WebPreview';
 
 interface WorkspaceProps {
   activeTab: 'srs' | 'architecture' | 'explanation' | 'code' | 'preview';
-  history: any[]; // Now accepts the full assistant history
+  history: any[];
 }
 
-// Parses files without the fallback text so we can safely merge them
 const extractFilesFromText = (markdown: string): Record<string, string> => {
   const files: Record<string, string> = {};
   const blockRegex = /(?:\*\*`?([^`*\n]+)`?\*\*|###\s*([^\n]+))\s*```[a-z]*\n([\s\S]*?)```/gi;
@@ -50,19 +50,29 @@ const extractFilesFromText = (markdown: string): Record<string, string> => {
 };
 
 export default function Workspace({ activeTab, history }: WorkspaceProps) {
-  // 1. Get the very latest message for the text tabs (SRS, Architecture, Explanation)
+  const [localEdits, setLocalEdits] = useState<Record<string, string>>({});
   const latestMessage = history.length > 0 ? history[history.length - 1].content : "";
 
-  // 2. ACCUMULATOR: Loop through all history and merge file edits over time
-  const dynamicFiles = history.reduce((acc, msg) => {
-    const msgFiles = extractFilesFromText(msg.content);
-    return { ...acc, ...msgFiles }; // New files overwrite old files with the same name
-  }, {} as Record<string, string>);
+  // Reset manual edits when the AI sends a brand new batch of code
+  useEffect(() => {
+    setLocalEdits({});
+  }, [history.length]);
 
-  // Add fallback only if the final merged system is completely empty
-  if (Object.keys(dynamicFiles).length === 0) {
-      dynamicFiles["info.txt"] = "No code blocks found.";
+  // Combine AI history files with your manual local edits
+  const dynamicFiles = history.reduce((acc, msg) => {
+    return { ...acc, ...extractFilesFromText(msg.content) };
+  }, {} as Record<string, string>);
+  
+  // Apply manual edits on top
+  const finalFiles = { ...dynamicFiles, ...localEdits };
+
+  if (Object.keys(finalFiles).length === 0) {
+      finalFiles["info.txt"] = "No code blocks found.";
   }
+
+  const handleManualEdit = (fileName: string, newContent: string) => {
+    setLocalEdits(prev => ({ ...prev, [fileName]: newContent }));
+  };
 
   const components = {
     code({ node, inline, className, children, ...props }: any) {
@@ -107,12 +117,12 @@ export default function Workspace({ activeTab, history }: WorkspaceProps) {
     <div className="h-full bg-white flex flex-col">
       <div className="flex-1 overflow-auto p-0 bg-slate-50">
         {activeTab === 'code' ? (
-             <div className="h-full p-4">
-                <FileExplorer files={dynamicFiles} />
+             <div className="h-full p-0">
+                <FileExplorer files={finalFiles} onFileChange={handleManualEdit} />
              </div>
         ) : activeTab === 'preview' ? (
              <div className="h-full p-4">
-                 <WebPreview files={dynamicFiles} />
+                 <WebPreview files={finalFiles} />
              </div>
         ) : (
             <div className="p-8">
