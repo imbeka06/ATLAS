@@ -6,12 +6,12 @@ import WebPreview from './WebPreview';
 
 interface WorkspaceProps {
   activeTab: 'srs' | 'architecture' | 'explanation' | 'code' | 'preview';
-  content: string;
+  history: any[]; // Now accepts the full assistant history
 }
 
-const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
+// Parses files without the fallback text so we can safely merge them
+const extractFilesFromText = (markdown: string): Record<string, string> => {
   const files: Record<string, string> = {};
-  
   const blockRegex = /(?:\*\*`?([^`*\n]+)`?\*\*|###\s*([^\n]+))\s*```[a-z]*\n([\s\S]*?)```/gi;
   let match;
   let found = false;
@@ -19,10 +19,7 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
   while ((match = blockRegex.exec(markdown)) !== null) {
     found = true;
     let rawName = (match[1] || match[2]).trim();
-    // Flatten paths (e.g., "src/index.html" becomes "index.html") to prevent OS crashes
     const fileName = rawName.split('/').pop() || `file_${Date.now()}.txt`;
-    
-    // Ignore ASCII trees that the AI sometimes generates
     const fileContent = match[3].trim();
     if (!fileContent.includes("├──") && !fileContent.includes("└──")) {
         files[fileName] = fileContent;
@@ -34,10 +31,7 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
     let index = 1;
     while ((match = fallbackRegex.exec(markdown)) !== null) {
         const lang = match[1].toLowerCase();
-        
-        // Ignore terminal commands, diagrams, and plain text trees
         if (['mermaid', 'bash', 'sh', 'text', 'tree', 'plaintext', 'terminal'].includes(lang)) continue;
-        
         const content = match[2].trim();
         if (content.includes("├──") || content.includes("└──")) continue;
 
@@ -52,11 +46,24 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
         index++;
     }
   }
-
-  return Object.keys(files).length > 0 ? files : { "info.txt": "No code blocks found." };
+  return files;
 };
 
-export default function Workspace({ activeTab, content }: WorkspaceProps) {
+export default function Workspace({ activeTab, history }: WorkspaceProps) {
+  // 1. Get the very latest message for the text tabs (SRS, Architecture, Explanation)
+  const latestMessage = history.length > 0 ? history[history.length - 1].content : "";
+
+  // 2. ACCUMULATOR: Loop through all history and merge file edits over time
+  const dynamicFiles = history.reduce((acc, msg) => {
+    const msgFiles = extractFilesFromText(msg.content);
+    return { ...acc, ...msgFiles }; // New files overwrite old files with the same name
+  }, {} as Record<string, string>);
+
+  // Add fallback only if the final merged system is completely empty
+  if (Object.keys(dynamicFiles).length === 0) {
+      dynamicFiles["info.txt"] = "No code blocks found.";
+  }
+
   const components = {
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '');
@@ -68,21 +75,16 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
     }
   };
 
-  const dynamicFiles = parseFilesFromMarkdown(content);
-
   const getFilteredContent = () => {
     if (activeTab === 'srs') {
-        const srsMatch = content.match(/## 1\.\s*SRS Documentation([\s\S]*?)(?=## 2\.|## 3\.|## 4\.)/i);
+        const srsMatch = latestMessage.match(/## 1\.\s*SRS Documentation([\s\S]*?)(?=## 2\.|## 3\.|## 4\.)/i);
         if (srsMatch) return srsMatch[1].trim();
-        
-        let srsContent = content.replace(/```mermaid[\s\S]*?```/g, '');
-        srsContent = srsContent.replace(/```[\s\S]*?```/g, '');
-        srsContent = srsContent.replace(/\*\*`?[^`*]+`?\*\*/g, '');
+        let srsContent = latestMessage.replace(/```mermaid[\s\S]*?```/g, '').replace(/```[\s\S]*?```/g, '').replace(/\*\*`?[^`*]+`?\*\*/g, '');
         return srsContent.trim() || "No SRS documentation found.";
     }
     
     if (activeTab === 'explanation') {
-        const expMatch = content.match(/## 3\.\s*Step-by-Step Explanation([\s\S]*?)(?=## 4\.)/i);
+        const expMatch = latestMessage.match(/## 3\.\s*Step-by-Step Explanation([\s\S]*?)(?=## 4\.)/i);
         if (expMatch) return expMatch[1].trim();
         return "No step-by-step explanation generated yet.";
     }
@@ -91,16 +93,14 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
         const mermaidMatches = [];
         const regex = /```mermaid\n([\s\S]*?)```/gi;
         let match;
-        while ((match = regex.exec(content)) !== null) {
+        while ((match = regex.exec(latestMessage)) !== null) {
             mermaidMatches.push(match);
         }
-        if (mermaidMatches.length > 0) {
-            return mermaidMatches.map(m => `\`\`\`mermaid\n${m[1]}\n\`\`\``).join('\n\n');
-        }
+        if (mermaidMatches.length > 0) return mermaidMatches.map(m => `\`\`\`mermaid\n${m[1]}\n\`\`\``).join('\n\n');
         return "No diagrams generated yet.";
     }
     
-    return content;
+    return latestMessage;
   };
 
   return (
@@ -117,7 +117,7 @@ export default function Workspace({ activeTab, content }: WorkspaceProps) {
         ) : (
             <div className="p-8">
                 <article className="prose prose-slate max-w-none">
-                {content ? (
+                {latestMessage ? (
                     <ReactMarkdown components={components}>
                     {getFilteredContent()}
                     </ReactMarkdown>
