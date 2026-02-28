@@ -19,6 +19,7 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
     requires_vision = request.attachment and request.attachment.type.startswith('image/')
     
     # SMARTER SYSTEM PROMPT
+    # SMARTER SYSTEM PROMPT
     system_prompt = (
         "You are ATLAS, an elite AI Solutions Architect. "
         "Every response MUST strictly follow this EXACT 4-part structure:\n\n"
@@ -30,7 +31,9 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
         "(Provide a highly detailed step-by-step tutorial including terminal commands, execution order, and rationale.)\n\n"
         "## 4. Implementation\n"
         "(Provide FULL code files formatted EXACTLY as: **`filename.ext`** followed by the code block. "
-        "CRITICAL: Adapt to the project type! If it is a Web UI, output full index.html and style.css. If it is a Backend/Python/API project, ONLY output the relevant backend files like main.py, requirements.txt, etc. Do not invent random HTML files if the user didn't ask for a web interface.)"
+        "CRITICAL: Adapt to the project type! If it is a Web UI, output full index.html and style.css. "
+        "REACT RULE: If building a React app, NEVER use create-react-app or react-scripts. Either use Vite, or build it in a single index.html using React/Babel CDNs for instant loading. "
+        "If it is a Backend/Python/API project, ONLY output the relevant backend files like main.py, requirements.txt, etc. Do not invent random HTML files if the user didn't ask for a web interface.)"
     )
 
     messages = [{"role": "system", "content": system_prompt}]
