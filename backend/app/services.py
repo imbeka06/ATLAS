@@ -34,6 +34,7 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
         "CRITICAL: Adapt to the project type! If it is a Web UI, output full index.html and style.css. "
         "REACT RULE: If building a React app, NEVER use create-react-app or react-scripts. Either use Vite, or build it in a single index.html using React/Babel CDNs for instant loading. "
         "If it is a Backend/Python/API project, ONLY output the relevant backend files like main.py, requirements.txt, etc. Do not invent random HTML files if the user didn't ask for a web interface.)"
+        "CRITICAL SMART UPDATES: If the user is asking for a change or fix to an existing project, ONLY output the specific files that are changing. Do NOT rewrite files that remain exactly the same. The system will automatically merge your updated files with the existing codebase.)"
     )
 
     messages = [{"role": "system", "content": system_prompt}]
