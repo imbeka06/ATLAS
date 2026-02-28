@@ -11,14 +11,22 @@ interface WorkspaceProps {
 
 const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
   const files: Record<string, string> = {};
+  
   const blockRegex = /(?:\*\*`?([^`*\n]+)`?\*\*|###\s*([^\n]+))\s*```[a-z]*\n([\s\S]*?)```/gi;
   let match;
   let found = false;
 
   while ((match = blockRegex.exec(markdown)) !== null) {
     found = true;
-    const fileName = (match[1] || match[2]).trim();
-    files[fileName] = match[3].trim();
+    let rawName = (match[1] || match[2]).trim();
+    // Flatten paths (e.g., "src/index.html" becomes "index.html") to prevent OS crashes
+    const fileName = rawName.split('/').pop() || `file_${Date.now()}.txt`;
+    
+    // Ignore ASCII trees that the AI sometimes generates
+    const fileContent = match[3].trim();
+    if (!fileContent.includes("├──") && !fileContent.includes("└──")) {
+        files[fileName] = fileContent;
+    }
   }
 
   if (!found) {
@@ -26,14 +34,17 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
     let index = 1;
     while ((match = fallbackRegex.exec(markdown)) !== null) {
         const lang = match[1].toLowerCase();
-        if (lang === 'mermaid') continue; 
+        
+        // Ignore terminal commands, diagrams, and plain text trees
+        if (['mermaid', 'bash', 'sh', 'text', 'tree', 'plaintext', 'terminal'].includes(lang)) continue;
         
         const content = match[2].trim();
+        if (content.includes("├──") || content.includes("└──")) continue;
+
         let ext = 'txt';
-        
         if (content.includes('<!DOCTYPE html') || content.includes('<html')) ext = 'html';
         else if (content.includes('body {') || content.includes('margin:')) ext = 'css';
-        else if (content.includes('function') || content.includes('console.log')) ext = 'js';
+        else if (content.includes('function') || content.includes('import React')) ext = 'js';
         else if (lang) ext = lang;
 
         const finalName = ext === 'html' ? 'index.html' : `generated_file_${index}.${ext}`;
@@ -42,7 +53,7 @@ const parseFilesFromMarkdown = (markdown: string): Record<string, string> => {
     }
   }
 
-  return Object.keys(files).length > 0 ? files : { "info.txt": "No code blocks found in response." };
+  return Object.keys(files).length > 0 ? files : { "info.txt": "No code blocks found." };
 };
 
 export default function Workspace({ activeTab, content }: WorkspaceProps) {
