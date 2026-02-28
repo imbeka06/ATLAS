@@ -18,6 +18,7 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
     state = request.current_state
     requires_vision = request.attachment and request.attachment.type.startswith('image/')
     
+    # SMARTER SYSTEM PROMPT
     system_prompt = (
         "You are ATLAS, an elite AI Solutions Architect. "
         "Every response MUST strictly follow this EXACT 4-part structure:\n\n"
@@ -26,9 +27,10 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
         "## 2. Architecture Diagrams\n"
         "(Provide ERDs, DFDs, or flowcharts using ONLY Mermaid JS: ```mermaid...```)\n\n"
         "## 3. Step-by-Step Explanation\n"
-        "(Explain the architecture rationale, e.g., why dual-brain or specific tech is used. Provide a highly detailed step-by-step tutorial including terminal commands, where to run `npm install`, when to `git commit`, and execution order.)\n\n"
+        "(Provide a highly detailed step-by-step tutorial including terminal commands, execution order, and rationale.)\n\n"
         "## 4. Implementation\n"
-        "(Provide FULL code files. Format EXACTLY as: **`filename.ext`** followed by the code block. Always output complete files like 'index.html', 'style.css', and 'script.js' for previews.)"
+        "(Provide FULL code files formatted EXACTLY as: **`filename.ext`** followed by the code block. "
+        "CRITICAL: Adapt to the project type! If it is a Web UI, output full index.html and style.css. If it is a Backend/Python/API project, ONLY output the relevant backend files like main.py, requirements.txt, etc. Do not invent random HTML files if the user didn't ask for a web interface.)"
     )
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -37,7 +39,7 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
     for msg in recent_history:
         content = str(msg.content)
         if len(content) > 1500:
-            content = content[:1500] + "\n\n...[Old Code Truncated to save memory]..."
+            content = content[:1500] + "\n\n...[Old Code Truncated]..."
             
         has_historical_image = getattr(msg, 'attachment', None) and msg.attachment.type.startswith('image/')
         
@@ -54,10 +56,11 @@ def analyze_intent_and_respond(request: UserRequest) -> dict:
                 content += "\n[Image omitted because current task does not require vision]"
             messages.append({"role": msg.role, "content": content})
 
+    # SMARTER ENFORCER PROMPT
     enforced_user_prompt = (
         f"{request.message}\n\n"
-        "IMPORTANT: You MUST generate all 4 sections (1. SRS, 2. Architecture, 3. Explanation, 4. Implementation). "
-        "Under Implementation, regenerate the COMPLETE 'index.html' and 'style.css' files so the web preview functions perfectly."
+        "IMPORTANT: You MUST generate all 4 sections. Under Implementation, provide COMPLETE files, not snippets. "
+        "If building a frontend, ensure the complete HTML/CSS is present. If building a backend, only provide backend code."
     )
     
     user_content = [{"type": "text", "text": enforced_user_prompt}]
