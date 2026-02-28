@@ -172,8 +172,8 @@ export default function Home() {
             ))}
         </div>
         <div className="flex-1 overflow-hidden">
-            <Workspace activeTab={activeTab} content={workspaceContent} />
-        </div>
+        <Workspace activeTab={activeTab} history={assistantHistory} />
+    </div>
       </div>
     </main>
   );
