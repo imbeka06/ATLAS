@@ -65,7 +65,6 @@ export default function Home() {
     }
   };
 
-  const assistantHistory = activeProject.history.filter(m => m.role === 'assistant');
   const handleSend = async (msg: string, attachment?: Attachment) => {
     setLoading(true);
     
@@ -172,7 +171,7 @@ export default function Home() {
             ))}
         </div>
         <div className="flex-1 overflow-hidden">
-        <Workspace activeTab={activeTab} history={assistantHistory} />
+        <Workspace activeTab={activeTab} history={activeProject.history.filter(m => m.role === 'assistant')} />
     </div>
       </div>
     </main>
