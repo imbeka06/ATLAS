@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from .models import UserRequest, AIResponse, Message
@@ -8,12 +9,18 @@ from .services import analyze_intent_and_respond
 
 app = FastAPI(title="ARCHITECT.AI API")
 
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["POST", "GET"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 @app.post("/chat", response_model=AIResponse)
